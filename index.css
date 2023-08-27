@@ -10,6 +10,8 @@ body {
   align-items: center;
   justify-content: center;
   background: antiquewhite;
+  margin: 0;
+  padding: 0;
 }
 
 h1 {
@@ -75,4 +77,9 @@ button {
   background-color: #0c1d1d;
   color: whitesmoke;
   font-size: 1.5rem;
+}
+
+#cesiumContainer {
+  width: 100vw;
+  height: 100vh;
 }
