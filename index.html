@@ -34,8 +34,12 @@
       <section class="call-container" hidden>
         <div class="audio-container">
           <p>You're automatically muted, unmute yourself!</p>
-          <audio controls id="remoteAudio" muted="true"></audio>
-          <audio controls id="localAudio" muted="true"></audio>
+          <p>
+            Remote audio: <audio controls id="remoteAudio" muted="true"></audio>
+          </p>
+          <p>
+            Local audio: <audio controls id="localAudio" muted="true"></audio>
+          </p>
         </div>
         <button class="hangup-btn">Hang up</button>
       </section>
@@ -49,5 +53,14 @@
         <button class="connect-btn">Connect</button>
       </div>
     </section>
+
+    <script src="node_modules/socket.io/client-dist/socket.io.js"></script>
+    <script>
+      var socket = io();
+      socket.on("clientIds", function (clientIds) {
+        console.log("new clientIds", clientIds);
+        window.clientIds = clientIds;
+      });
+    </script>
   </body>
 </html>

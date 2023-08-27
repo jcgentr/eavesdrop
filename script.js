@@ -1,3 +1,15 @@
+window.clientIds = [];
+
+function getClients() {
+  const clientsElem = document.querySelector(".clients");
+  fetch("/clients")
+    .then((response) => response.json())
+    .then((data) => {
+      window.clientIds = data;
+      console.log(window.clientIds);
+    });
+}
+
 const peer = new Peer(
   `${Math.floor(Math.random() * 2 ** 18)
     .toString(36)
@@ -29,6 +41,7 @@ getLocalStream();
 
 peer.on("open", () => {
   window.caststatus.textContent = `Your device ID is: ${peer.id}`;
+  getClients();
 });
 
 const audioContainer = document.querySelector(".call-container");
@@ -46,3 +59,70 @@ function showConnectedContent() {
   callBtn.hidden = true;
   audioContainer.hidden = false;
 }
+
+let code;
+
+function getStreamCode() {
+  code = window.prompt("Please enter the sharing code");
+}
+
+let conn1; // caller of the call
+
+function connectPeers() {
+  conn1 = peer.connect(code);
+  console.log("connect peers: ", conn1);
+}
+
+let conn2; // receiver of the call
+
+peer.on("connection", (connection) => {
+  conn2 = connection;
+  console.log("connection: ", conn2);
+});
+
+const callBtn = document.querySelector(".call-btn");
+
+callBtn.addEventListener("click", () => {
+  getStreamCode();
+  connectPeers();
+  const call = peer.call(code, window.localStream);
+
+  call.on("stream", (stream) => {
+    window.remoteAudio.srcObject = stream;
+    window.remoteAudio.autoplay = true;
+    window.peerStream = stream;
+    showConnectedContent();
+  });
+});
+
+peer.on("call", (call) => {
+  const answerCall = confirm("Do you want to answer?");
+
+  conn1?.on("close", () => {
+    showCallContent();
+  });
+
+  conn2?.on("close", () => {
+    showCallContent();
+  });
+
+  if (answerCall) {
+    call.answer(window.localStream);
+    showConnectedContent();
+    call.on("stream", (stream) => {
+      window.remoteAudio.srcObject = stream;
+      window.remoteAudio.autoplay = true;
+      window.peerStream = stream;
+    });
+  } else {
+    console.log("call denied");
+  }
+});
+
+const hangUpBtn = document.querySelector(".hangup-btn");
+
+hangUpBtn.addEventListener("click", () => {
+  conn1?.close();
+  conn2?.close();
+  showCallContent();
+});
