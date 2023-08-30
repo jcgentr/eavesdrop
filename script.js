@@ -1,8 +1,34 @@
 window.clientIds = [];
+window.latitude = null;
+window.longitude = null;
+
+function geoFindMe() {
+  function success(position) {
+    window.latitude = position.coords.latitude;
+    window.longitude = position.coords.longitude;
+
+    console.log(
+      `Latitude: ${window.latitude} °, Longitude: ${window.longitude} °`
+    );
+  }
+
+  function error() {
+    console.log("Unable to retrieve your location");
+  }
+
+  if (!navigator.geolocation) {
+    console.log("Geolocation is not supported by your browser");
+  } else {
+    navigator.geolocation.getCurrentPosition(success, error);
+  }
+}
 
 function getClients() {
   const clientsElem = document.querySelector(".clients");
-  fetch("/clients")
+  // TODO: send lat and long as query parameters
+  geoFindMe();
+  const url = `/clients?lat=${window.latitude}&long=${window.longitude}`;
+  fetch(url)
     .then((response) => response.json())
     .then((data) => {
       window.clientIds = data;
@@ -40,7 +66,7 @@ function getLocalStream() {
 getLocalStream();
 
 peer.on("open", () => {
-  window.caststatus.textContent = `Your device ID is: ${peer.id}`;
+  // window.caststatus.textContent = `Your device ID is: ${peer.id}`;
   getClients();
 });
 
