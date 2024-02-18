@@ -16,22 +16,33 @@ const peerServer = ExpressPeerServer(server, {
 });
 
 let clientIds = [];
+let clientsBroadcasting = [];
 
 io.on("connection", (socket) => {
   console.log("a user connected");
+
   socket.on("disconnect", () => {
     console.log("user disconnected");
+  });
+
+  socket.on("broadcast-client", (clientData) => {
+    const { clientId, lat, long } = clientData;
+    console.log(clientId, lat, long);
+    clientsBroadcasting.push(clientData);
+    io.emit("broadcast-client", clientData);
   });
 });
 
 peerServer.on("connection", (client) => {
   console.log(`client ${client.id} connected`);
+  // add clientId
   clientIds.push(client.id);
   io.emit("clientIds", clientIds);
 });
 
 peerServer.on("disconnect", (client) => {
   console.log(`client ${client.id} disconnected`);
+  // remove clientId
   clientIds = clientIds.filter((id) => id !== client.id);
   io.emit("clientIds", clientIds);
 });
@@ -43,7 +54,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/clients", (req, res) => {
-  res.json(clientIds);
+  res.json({ clientIds, clientsBroadcasting });
 });
 
 app.use("/peerjs", peerServer);

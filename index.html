@@ -17,39 +17,28 @@
       content="Eavesdrop on live conversations from around the world."
     />
 
-    <!-- Include the CesiumJS JavaScript and CSS files -->
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.108/Build/Cesium/Cesium.js"></script>
     <link
       href="https://cesium.com/downloads/cesiumjs/releases/1.108/Build/Cesium/Widgets/widgets.css"
       rel="stylesheet"
     />
-
-    <!-- import the webpage's stylesheet -->
     <link rel="stylesheet" href="/index.css" />
 
-    <!-- import the webpage's javascript file -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.108/Build/Cesium/Cesium.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="node_modules/socket.io/client-dist/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/davidshimjs-qrcodejs@0.0.2/qrcode.min.js"></script>
     <script src="script.js" defer></script>
   </head>
   <body>
-    <!-- 
-
-    <section class="modal" hidden>
-      <div id="close">close</div>
-      <div class="inner-modal">
-        <label>Give us your friend's device ID</label>
-        <input placeholder="Enter your friend's device ID" aria-colcount="10" />
-        <button class="connect-btn">Connect</button>
-      </div>
-    </section> -->
     <div
       style="display: flex; flex-direction: row; width: 100vw; height: 100vh"
     >
       <div id="cesiumContainer" style="flex: 2"></div>
       <div style="width: 25%; flex: 1">
-        <button class="call-btn">Call</button>
-        <section class="call-container" hidden>
+        <button class="call-btn">Record conversation</button>
+        <p id="clientId"></p>
+        <p id="callStatus"></p>
+        <section id="callContainer" hidden>
           <div class="audio-container">
             <p>You're automatically muted, unmute yourself!</p>
             <p>
@@ -65,37 +54,5 @@
         </section>
       </div>
     </div>
-
-    <script type="module">
-      Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0ODBhZDdmMS00OWJhLTQwYjUtODk4OS02YTQ2MzY0YWY5ODkiLCJpZCI6MTYyODk3LCJpYXQiOjE2OTMxNzA5Nzh9.C0vBrPyP2bX_dBs480p0zqQDR8NE458oj1zGB-693fk";
-
-      // Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
-      const viewer = new Cesium.Viewer("cesiumContainer", {
-        baseLayer: Cesium.ImageryLayer.fromWorldImagery({
-          style: Cesium.IonWorldImageryStyle.AERIAL_WITH_LABELS,
-        }),
-        baseLayerPicker: false,
-      });
-      // TODO: loop over current clientIds and add their location to map
-      // how do I get client location?
-      const entities = viewer.entities;
-      entities.add({
-        position: Cesium.Cartesian3.fromDegrees(-75.59777, 40.03883),
-        billboard: {
-          image: "./map-marker.svg",
-          scale: 0.3,
-        },
-      });
-    </script>
-
-    <script src="node_modules/socket.io/client-dist/socket.io.js"></script>
-    <script>
-      var socket = io();
-      socket.on("clientIds", function (clientIds) {
-        console.log("new clientIds", clientIds);
-        window.clientIds = clientIds;
-      });
-    </script>
   </body>
 </html>
