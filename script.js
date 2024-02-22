@@ -58,7 +58,6 @@ peer.on("open", () => {
 });
 
 const audioContainer = document.getElementById("callContainer");
-console.log(audioContainer);
 
 // Displays the call button and peer ID
 function showCallContent() {
@@ -73,56 +72,6 @@ function showConnectedContent() {
   callBtn.hidden = true;
   audioContainer.hidden = false;
 }
-
-// let code;
-
-// function getStreamCode() {
-//   code = window.prompt("Please enter the sharing code");
-// }
-
-// let conn2; // receiver of the call
-
-// peer.on("connection", (connection) => {
-//   conn2 = connection;
-//   console.log("connection: ", conn2);
-// });
-
-// callBtn.addEventListener("click", () => {
-//   getStreamCode();
-//   connectPeers();
-//   const call = peer.call(code, window.localStream);
-
-//   call.on("stream", (stream) => {
-//     window.remoteAudio.srcObject = stream;
-//     window.remoteAudio.autoplay = true;
-//     window.peerStream = stream;
-
-//   });
-// });
-
-// peer.on("call", (call) => {
-//   const answerCall = confirm("Do you want to answer?");
-
-//   conn1?.on("close", () => {
-//     showCallContent();
-//   });
-
-//   conn2?.on("close", () => {
-//     showCallContent();
-//   });
-
-//   if (answerCall) {
-//     call.answer(window.localStream);
-//     showConnectedContent();
-//     call.on("stream", (stream) => {
-//       window.remoteAudio.srcObject = stream;
-//       window.remoteAudio.autoplay = true;
-//       window.peerStream = stream;
-//     });
-//   } else {
-//     console.log("call denied");
-//   }
-// });
 
 let p2pConnection;
 
@@ -222,7 +171,7 @@ socket.on("clientIds", function (clientIds) {
 socket.on("broadcast-client", (clientData) => {
   // if current peer, ignore
   if (clientData.clientId === peer.id) return;
-  // change lat and long for testing purposes
+  // change lat and long for TESTING PURPOSES ONLY
   const randomOffset = () => (Math.random() - 0.5) * 10;
   const newEntity = entities.add({
     position: Cesium.Cartesian3.fromDegrees(
@@ -268,26 +217,6 @@ socket.on("broadcast-client", (clientData) => {
         window.remoteAudio.autoplay = true;
         window.peerStream = remoteStream;
       });
-
-      // const getUserMedia =
-      //   navigator.getUserMedia ||
-      //   navigator.webkitGetUserMedia ||
-      //   navigator.mozGetUserMedia;
-
-      // getUserMedia(
-      //   { video: false, audio: false },
-      //   (stream) => {
-      //     // Since audio is false, this stream will not contain an audio track.
-      //     const call = peer.call(peerId, stream);
-      //     call.on("stream", (remoteStream) => {
-      //       // Show stream in some video/canvas element.
-      //       console.log(remoteStream);
-      //     });
-      //   },
-      //   (err) => {
-      //     console.log("Failed to get local stream", err);
-      //   }
-      // );
     }
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
