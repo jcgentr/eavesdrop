@@ -35,11 +35,10 @@
     >
       <div id="cesiumContainer" style="flex: 2"></div>
       <div style="width: 25%; flex: 1">
-        <button class="call-btn">Record conversation</button>
-        <p id="clientId"></p>
-        <p id="callStatus"></p>
+        <button class="call-btn">Stream conversation</button>
         <section id="callContainer" hidden>
           <div class="audio-container">
+            <button class="hangup-btn">Stop stream</button>
             <p>You're automatically muted, unmute yourself!</p>
             <p>
               Remote audio:
@@ -50,8 +49,9 @@
               <audio controls id="localAudio" muted="true"></audio>
             </p>
           </div>
-          <button class="hangup-btn">Hang up</button>
         </section>
+        <p id="clientId"></p>
+        <p id="callStatus"></p>
       </div>
     </div>
   </body>

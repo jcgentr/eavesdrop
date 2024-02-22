@@ -50,22 +50,6 @@ const peer = new Peer(
 // attach peer to global window
 window.peer = peer;
 
-// Gets the local audio stream of the current caller
-function getLocalStream() {
-  navigator.mediaDevices
-    .getUserMedia({ video: false, audio: true })
-    .then((stream) => {
-      window.localStream = stream; // A
-      window.localAudio.srcObject = stream; // B
-      window.localAudio.autoplay = true; // C
-    })
-    .catch((err) => {
-      console.error(`you got an error: ${err}`);
-    });
-}
-
-getLocalStream();
-
 peer.on("open", () => {
   document.getElementById(
     "clientId"
@@ -96,13 +80,6 @@ function showConnectedContent() {
 //   code = window.prompt("Please enter the sharing code");
 // }
 
-// let conn1; // caller of the call
-
-// function connectPeers() {
-//   conn1 = peer.connect(code);
-//   console.log("connect peers: ", conn1);
-// }
-
 // let conn2; // receiver of the call
 
 // peer.on("connection", (connection) => {
@@ -119,7 +96,7 @@ function showConnectedContent() {
 //     window.remoteAudio.srcObject = stream;
 //     window.remoteAudio.autoplay = true;
 //     window.peerStream = stream;
-//     showConnectedContent();
+
 //   });
 // });
 
@@ -147,6 +124,27 @@ function showConnectedContent() {
 //   }
 // });
 
+let p2pConnection;
+
+function connectPeers(clientId) {
+  console.log("trying to connect to ", clientId);
+  p2pConnection = peer.connect(clientId);
+  console.log("connected peers: ", p2pConnection);
+
+  p2pConnection.on("open", () => {
+    // here you have conn.id
+    console.log("p2p connection open");
+    p2pConnection.send("hi!");
+  });
+}
+
+peer.on("connection", (conn) => {
+  conn.on("data", (data) => {
+    // Will print 'hi!'
+    console.log(data);
+  });
+});
+
 const hangUpBtn = document.querySelector(".hangup-btn");
 
 hangUpBtn.addEventListener("click", () => {
@@ -156,7 +154,7 @@ hangUpBtn.addEventListener("click", () => {
 });
 
 Cesium.Ion.defaultAccessToken =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0ODBhZDdmMS00OWJhLTQwYjUtODk4OS02YTQ2MzY0YWY5ODkiLCJpZCI6MTYyODk3LCJpYXQiOjE2OTMxNzA5Nzh9.C0vBrPyP2bX_dBs480p0zqQDR8NE458oj1zGB-693fk";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzYTZmYjQxYi04ZDhhLTQ1NTQtYThhYy1jOTdhNWRmZTU3MmYiLCJpZCI6MTYyODk3LCJpYXQiOjE3MDg2MTQzNDN9.tJSlF71XoFHJyQNsDLHQbqeTjpbyRGCVeXvWFaTQaPQ";
 
 // Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
 const viewer = new Cesium.Viewer("cesiumContainer", {
@@ -170,6 +168,11 @@ const entities = viewer.entities;
 
 navigator.geolocation.getCurrentPosition(
   (position) => {
+    console.log(
+      "found location: ",
+      position.coords.longitude,
+      position.coords.latitude
+    );
     const userLocation = Cesium.Cartesian3.fromDegrees(
       position.coords.longitude,
       position.coords.latitude,
@@ -198,7 +201,15 @@ navigator.geolocation.getCurrentPosition(
       duration: 2, // Duration in seconds
     });
   },
-  (positionError) => console.error(positionError)
+  (positionError) => {
+    console.log("could not get position =(");
+    console.log(positionError);
+  },
+  {
+    enableHighAccuracy: false, // Set to false to test without high accuracy
+    maximumAge: 60000, // Increase maximumAge to allow for cached positions
+    timeout: 27000, // Increase or decrease the timeout value
+  }
 );
 
 var socket = io();
@@ -213,7 +224,7 @@ socket.on("broadcast-client", (clientData) => {
   if (clientData.clientId === peer.id) return;
   // change lat and long for testing purposes
   const randomOffset = () => (Math.random() - 0.5) * 10;
-  entities.add({
+  const newEntity = entities.add({
     position: Cesium.Cartesian3.fromDegrees(
       clientData.long + randomOffset(),
       clientData.lat + randomOffset()
@@ -223,15 +234,113 @@ socket.on("broadcast-client", (clientData) => {
       color: Cesium.Color.GREEN,
     },
   });
+  // Set up an event handler for the left click
+  // this is the user eavesdropping on cnoversation
+  viewer.screenSpaceEventHandler.setInputAction((click) => {
+    const pickedObject = viewer.scene.pick(click.position);
+    if (Cesium.defined(pickedObject) && pickedObject.id === newEntity) {
+      // The entity was clicked, add your logic here
+      console.log("Entity clicked:", pickedObject.id);
+      // Perform any additional actions here
+      const peerId = clientData.clientId;
+      console.log(peerId);
+      connectPeers(peerId);
+      // Create a silent audio track
+      const audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const dst = audioContext.createMediaStreamDestination();
+      oscillator.connect(dst);
+      oscillator.start();
+      const track = dst.stream.getAudioTracks()[0];
+
+      // Create a new stream with the silent audio track
+      const silentStream = new MediaStream([track]);
+
+      // Use the silent stream for the call
+      const call = peer.call(peerId, silentStream);
+
+      call.on("stream", (remoteStream) => {
+        // Show stream in some video/canvas element.
+        console.log(remoteStream);
+        showConnectedContent();
+        window.remoteAudio.srcObject = remoteStream;
+        window.remoteAudio.autoplay = true;
+        window.peerStream = remoteStream;
+      });
+
+      // const getUserMedia =
+      //   navigator.getUserMedia ||
+      //   navigator.webkitGetUserMedia ||
+      //   navigator.mozGetUserMedia;
+
+      // getUserMedia(
+      //   { video: false, audio: false },
+      //   (stream) => {
+      //     // Since audio is false, this stream will not contain an audio track.
+      //     const call = peer.call(peerId, stream);
+      //     call.on("stream", (remoteStream) => {
+      //       // Show stream in some video/canvas element.
+      //       console.log(remoteStream);
+      //     });
+      //   },
+      //   (err) => {
+      //     console.log("Failed to get local stream", err);
+      //   }
+      // );
+    }
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+  // Set up an event handler for mouse movement
+  viewer.screenSpaceEventHandler.setInputAction((movement) => {
+    const pickedObject = viewer.scene.pick(movement.endPosition);
+    if (Cesium.defined(pickedObject) && pickedObject.id === newEntity) {
+      // Change the cursor style to pointer
+      viewer.canvas.style.cursor = "pointer";
+    } else {
+      // Change the cursor style back to default
+      viewer.canvas.style.cursor = "default";
+    }
+  }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 });
 
+// this is the user streaming their conversation
 const callBtn = document.querySelector(".call-btn");
 
 callBtn.addEventListener("click", () => {
   console.log(window.latitude, window.longitude);
+
   socket.emit("broadcast-client", {
     clientId: peer.id,
     lat: window.latitude,
     long: window.longitude,
+  });
+
+  const getUserMedia =
+    navigator.getUserMedia ||
+    navigator.webkitGetUserMedia ||
+    navigator.mozGetUserMedia;
+  // setup receiving call
+  peer.on("call", (call) => {
+    getUserMedia(
+      { video: false, audio: true },
+      (stream) => {
+        // localAudio allows them to hear themselves
+        window.localStream = stream;
+        window.localAudio.srcObject = stream;
+        window.localAudio.autoplay = true;
+
+        call.answer(window.localStream); // Answer the call with an audio stream.
+
+        call.on("stream", (remoteStream) => {
+          console.log(remoteStream);
+          showConnectedContent();
+          window.peerStream = remoteStream;
+        });
+      },
+      (err) => {
+        console.log("Failed to get local stream", err);
+      }
+    );
   });
 });

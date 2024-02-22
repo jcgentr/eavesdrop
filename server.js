@@ -44,6 +44,10 @@ peerServer.on("disconnect", (client) => {
   console.log(`client ${client.id} disconnected`);
   // remove clientId
   clientIds = clientIds.filter((id) => id !== client.id);
+  // remove client data
+  clientsBroadcasting = clientsBroadcasting.filter(
+    ({ clientId }) => clientId !== client.id
+  );
   io.emit("clientIds", clientIds);
 });
 
