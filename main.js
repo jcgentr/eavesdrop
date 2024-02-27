@@ -1,9 +1,40 @@
-import "./index.css";
-
 window.clientIds = [];
 window.latitude = null;
 window.longitude = null;
 window.streamStatus = null;
+
+import { io } from "socket.io-client";
+import { Peer } from "peerjs";
+import {
+  Cartesian3,
+  createOsmBuildingsAsync,
+  Ion,
+  Terrain,
+  Viewer,
+  ImageryLayer,
+  IonWorldImageryStyle,
+  defined,
+  ScreenSpaceEventType,
+  Color,
+  Math as CesiumMath,
+} from "cesium";
+import "cesium/Build/Cesium/Widgets/widgets.css";
+import "./index.css";
+
+// Your access token can be found at: https://ion.cesium.com/tokens.
+// This is the default access token from your ion account
+Ion.defaultAccessToken =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzYTZmYjQxYi04ZDhhLTQ1NTQtYThhYy1jOTdhNWRmZTU3MmYiLCJpZCI6MTYyODk3LCJpYXQiOjE3MDg2MTQzNDN9.tJSlF71XoFHJyQNsDLHQbqeTjpbyRGCVeXvWFaTQaPQ";
+
+// Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
+const viewer = new Viewer("cesiumContainer", {
+  baseLayer: ImageryLayer.fromWorldImagery({
+    style: IonWorldImageryStyle.AERIAL_WITH_LABELS,
+  }),
+  baseLayerPicker: false,
+});
+
+const entities = viewer.entities;
 
 // create new Peer with minimum length of 4 chars for peer ID
 const peer = new Peer(
@@ -71,23 +102,10 @@ hangUpBtn.addEventListener("click", () => {
   showCallContent();
 });
 
-Cesium.Ion.defaultAccessToken =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzYTZmYjQxYi04ZDhhLTQ1NTQtYThhYy1jOTdhNWRmZTU3MmYiLCJpZCI6MTYyODk3LCJpYXQiOjE3MDg2MTQzNDN9.tJSlF71XoFHJyQNsDLHQbqeTjpbyRGCVeXvWFaTQaPQ";
-
-// Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
-const viewer = new Cesium.Viewer("cesiumContainer", {
-  baseLayer: Cesium.ImageryLayer.fromWorldImagery({
-    style: Cesium.IonWorldImageryStyle.AERIAL_WITH_LABELS,
-  }),
-  baseLayerPicker: false,
-});
-
-const entities = viewer.entities;
-
 function setupEntityClickHandler(entity, clientData) {
   viewer.screenSpaceEventHandler.setInputAction((click) => {
     const pickedObject = viewer.scene.pick(click.position);
-    if (Cesium.defined(pickedObject) && pickedObject.id === entity) {
+    if (defined(pickedObject) && pickedObject.id === entity) {
       console.log("Entity clicked:", pickedObject.id);
       const peerId = clientData.clientId;
       console.log(peerId);
@@ -110,22 +128,22 @@ function setupEntityClickHandler(entity, clientData) {
         window.peerStream = remoteStream;
       });
     }
-  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  }, ScreenSpaceEventType.LEFT_CLICK);
 }
 
 function setupEntityMouseOverHandler(entity) {
   viewer.screenSpaceEventHandler.setInputAction((movement) => {
     const pickedObject = viewer.scene.pick(movement.endPosition);
-    if (Cesium.defined(pickedObject) && pickedObject.id === entity) {
+    if (defined(pickedObject) && pickedObject.id === entity) {
       viewer.canvas.style.cursor = "pointer";
     } else {
       viewer.canvas.style.cursor = "default";
     }
-  }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+  }, ScreenSpaceEventType.MOUSE_MOVE);
 }
 
 function getBroadcastingClients() {
-  return fetch("http://localhost:8000/clients")
+  return fetch("/clients")
     .then((response) => {
       if (!response.ok) {
         throw new Error("Network response was not ok");
@@ -145,13 +163,10 @@ getBroadcastingClients().then((data) => {
     data.clientsBroadcasting.map((clientData) => {
       // change lat and long for TESTING PURPOSES ONLY
       const newEntity = entities.add({
-        position: Cesium.Cartesian3.fromDegrees(
-          clientData.long,
-          clientData.lat
-        ),
+        position: Cartesian3.fromDegrees(clientData.long, clientData.lat),
         point: {
           pixelSize: 24,
-          color: Cesium.Color.YELLOW,
+          color: Color.YELLOW,
         },
       });
 
@@ -160,6 +175,13 @@ getBroadcastingClients().then((data) => {
     });
   }
 });
+
+//Dummy one, which will result in a working next statement.
+navigator.geolocation.getCurrentPosition(
+  function () {},
+  function () {},
+  {}
+);
 
 navigator.geolocation.getCurrentPosition(
   (position) => {
@@ -172,20 +194,20 @@ navigator.geolocation.getCurrentPosition(
     window.latitude = position.coords.latitude;
     window.longitude = position.coords.longitude;
 
-    const userLocation = Cesium.Cartesian3.fromDegrees(
+    const userLocation = Cartesian3.fromDegrees(
       position.coords.longitude,
       position.coords.latitude,
       10000000
     );
 
     entities.add({
-      position: Cesium.Cartesian3.fromDegrees(
+      position: Cartesian3.fromDegrees(
         position.coords.longitude,
         position.coords.latitude
       ),
-      billboard: {
-        image: "./map-marker.svg",
-        scale: 0.3,
+      point: {
+        pixelSize: 24,
+        color: Color.GREEN,
       },
     });
 
@@ -193,8 +215,8 @@ navigator.geolocation.getCurrentPosition(
     viewer.camera.flyTo({
       destination: userLocation,
       orientation: {
-        heading: Cesium.Math.toRadians(0.0), // East, default value
-        pitch: Cesium.Math.toRadians(-90.0), // Directly looking down
+        heading: CesiumMath.toRadians(0.0), // East, default value
+        pitch: CesiumMath.toRadians(-90.0), // Directly looking down
         roll: 0.0, // No roll
       },
       duration: 2, // Duration in seconds
@@ -205,13 +227,20 @@ navigator.geolocation.getCurrentPosition(
     console.log(positionError);
   },
   {
-    enableHighAccuracy: false, // Set to false to test without high accuracy
-    maximumAge: 60000, // Increase maximumAge to allow for cached positions
+    enableHighAccuracy: true, // Set to false to test without high accuracy
+    maximumAge: 10000, // Increase maximumAge to allow for cached positions
     timeout: 27000, // Increase or decrease the timeout value
   }
 );
 
-var socket = io();
+// Connect to the backend server
+// In development, this will be your Vite dev server's proxy
+// In production, it will be the same server that serves your static files
+const socket = io(import.meta.env.DEV ? "http://localhost:8000" : "/");
+
+socket.on("connect", () => {
+  console.log("connected to socket.io server");
+});
 
 socket.on("clientIds", function (clientIds) {
   console.log("new clientIds", clientIds);
@@ -221,16 +250,11 @@ socket.on("clientIds", function (clientIds) {
 socket.on("broadcast-client", (clientData) => {
   // if current peer, ignore
   if (clientData.clientId === peer.id) return;
-  // change lat and long for TESTING PURPOSES ONLY
-  const randomOffset = () => (Math.random() - 0.5) * 10;
   const newEntity = entities.add({
-    position: Cesium.Cartesian3.fromDegrees(
-      clientData.long + randomOffset(),
-      clientData.lat + randomOffset()
-    ),
+    position: Cartesian3.fromDegrees(clientData.long, clientData.lat),
     point: {
       pixelSize: 24,
-      color: Cesium.Color.GREEN,
+      color: Color.YELLOW,
     },
   });
 

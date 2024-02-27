@@ -1,6 +1,7 @@
 const express = require("express");
 const http = require("http");
 const path = require("path");
+const cors = require("cors");
 const app = express();
 const { Server } = require("socket.io");
 const { ExpressPeerServer } = require("peer");
@@ -8,7 +9,13 @@ const { ExpressPeerServer } = require("peer");
 const server = http.createServer(app);
 const port = process.env.PORT || "8000";
 
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin:
+      process.env.NODE_ENV === "development" ? "http://localhost:5173" : "*",
+    methods: ["GET", "POST"],
+  },
+});
 
 const peerServer = ExpressPeerServer(server, {
   debug: true,
@@ -19,17 +26,20 @@ let clientIds = [];
 let clientsBroadcasting = [];
 
 io.on("connection", (socket) => {
-  console.log("a user connected");
+  console.log("a user connected (Socket.io)");
 
   socket.on("disconnect", () => {
     console.log("user disconnected");
   });
 
   socket.on("broadcast-client", (clientData) => {
-    const { clientId, lat, long } = clientData;
-    console.log(clientId, lat, long);
+    // change lat and long for TESTING PURPOSES ONLY
+    clientData.lat += (Math.random() - 0.5) * 10;
+    clientData.long += (Math.random() - 0.5) * 10;
+    console.log(clientData);
+
     // don't broadcast client if they don't have proper geolocation
-    if (!lat || !long) return;
+    if (!clientData.lat || !clientData.long) return;
     clientsBroadcasting.push(clientData);
     io.emit("broadcast-client", clientData);
   });
@@ -53,12 +63,22 @@ peerServer.on("disconnect", (client) => {
   io.emit("clientIds", clientIds);
 });
 
-// Serve static files from Vite's build output directory
-app.use(express.static(path.join(__dirname, "dist")));
+// Enable CORS for requests from the Vite development server
+const corsOptions = {
+  origin: "http://localhost:5173", // or the port where your Vite server runs
+  optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
+};
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
+app.use(cors(corsOptions));
+
+if (process.env.NODE_ENV === "production") {
+  // Serve static files from Vite's build output directory
+  app.use(express.static(path.join(__dirname, "dist")));
+
+  app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "index.html"));
+  });
+}
 
 app.get("/clients", (req, res) => {
   res.json({ clientIds, clientsBroadcasting });
@@ -66,6 +86,6 @@ app.get("/clients", (req, res) => {
 
 app.use("/peerjs", peerServer);
 
-server.listen(port, () => {
+server.listen(port, "::", () => {
   console.log(`Listening at: http://localhost:${port}`);
 });
