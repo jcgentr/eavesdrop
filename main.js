@@ -1,40 +1,9 @@
+import "./index.css";
+
 window.clientIds = [];
 window.latitude = null;
 window.longitude = null;
-
-function geoFindMe() {
-  function success(position) {
-    window.latitude = position.coords.latitude;
-    window.longitude = position.coords.longitude;
-
-    console.log(
-      `Latitude: ${window.latitude} °, Longitude: ${window.longitude} °`
-    );
-  }
-
-  function error() {
-    console.log("Unable to retrieve your location");
-  }
-
-  if (!navigator.geolocation) {
-    console.log("Geolocation is not supported by your browser");
-  } else {
-    navigator.geolocation.getCurrentPosition(success, error);
-  }
-}
-
-function getClients() {
-  const clientsElem = document.querySelector(".clients");
-  // TODO: send lat and long as query parameters
-  geoFindMe();
-  const url = `/clients?lat=${window.latitude}&long=${window.longitude}`;
-  fetch(url)
-    .then((response) => response.json())
-    .then((data) => {
-      window.clientIds = data;
-      console.log(window.clientIds);
-    });
-}
+window.streamStatus = null;
 
 // create new Peer with minimum length of 4 chars for peer ID
 const peer = new Peer(
@@ -54,21 +23,22 @@ peer.on("open", () => {
   document.getElementById(
     "clientId"
   ).textContent = `Your device ID is: ${peer.id}`;
-  getClients();
 });
 
 const audioContainer = document.getElementById("callContainer");
 
 // Displays the call button and peer ID
 function showCallContent() {
-  // window.caststatus.textContent = `Your device ID is: ${peer.id}`;
+  document.getElementById("callStatus").textContent =
+    "You are not currently streaming";
   callBtn.hidden = false;
   audioContainer.hidden = true;
 }
 
 // Displays the audio controls and correct copy
-function showConnectedContent() {
-  document.getElementById("callStatus").textContent = "You're connected";
+function showStreamingContent() {
+  document.getElementById("callStatus").textContent =
+    "You are currently streaming";
   callBtn.hidden = true;
   audioContainer.hidden = false;
 }
@@ -97,8 +67,7 @@ peer.on("connection", (conn) => {
 const hangUpBtn = document.querySelector(".hangup-btn");
 
 hangUpBtn.addEventListener("click", () => {
-  conn1?.close();
-  conn2?.close();
+  peer.destroy();
   showCallContent();
 });
 
@@ -115,6 +84,83 @@ const viewer = new Cesium.Viewer("cesiumContainer", {
 
 const entities = viewer.entities;
 
+function setupEntityClickHandler(entity, clientData) {
+  viewer.screenSpaceEventHandler.setInputAction((click) => {
+    const pickedObject = viewer.scene.pick(click.position);
+    if (Cesium.defined(pickedObject) && pickedObject.id === entity) {
+      console.log("Entity clicked:", pickedObject.id);
+      const peerId = clientData.clientId;
+      console.log(peerId);
+      connectPeers(peerId);
+      const audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const dst = audioContext.createMediaStreamDestination();
+      oscillator.connect(dst);
+      oscillator.start();
+      const track = dst.stream.getAudioTracks()[0];
+      const silentStream = new MediaStream([track]);
+      const call = peer.call(peerId, silentStream);
+      call.on("stream", (remoteStream) => {
+        console.log(remoteStream);
+        document.getElementById("localAudioWrapper").style.display = "none";
+        showStreamingContent();
+        window.remoteAudio.srcObject = remoteStream;
+        window.remoteAudio.autoplay = true;
+        window.peerStream = remoteStream;
+      });
+    }
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+}
+
+function setupEntityMouseOverHandler(entity) {
+  viewer.screenSpaceEventHandler.setInputAction((movement) => {
+    const pickedObject = viewer.scene.pick(movement.endPosition);
+    if (Cesium.defined(pickedObject) && pickedObject.id === entity) {
+      viewer.canvas.style.cursor = "pointer";
+    } else {
+      viewer.canvas.style.cursor = "default";
+    }
+  }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+}
+
+function getBroadcastingClients() {
+  return fetch("http://localhost:8000/clients")
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+      return response.json();
+    })
+    .then((data) => data)
+    .catch((error) => {
+      console.error("Error fetching client data:", error);
+      return [];
+    });
+}
+
+getBroadcastingClients().then((data) => {
+  if (data) {
+    console.log(data.clientsBroadcasting);
+    data.clientsBroadcasting.map((clientData) => {
+      // change lat and long for TESTING PURPOSES ONLY
+      const newEntity = entities.add({
+        position: Cesium.Cartesian3.fromDegrees(
+          clientData.long,
+          clientData.lat
+        ),
+        point: {
+          pixelSize: 24,
+          color: Cesium.Color.YELLOW,
+        },
+      });
+
+      setupEntityClickHandler(newEntity, clientData);
+      setupEntityMouseOverHandler(newEntity);
+    });
+  }
+});
+
 navigator.geolocation.getCurrentPosition(
   (position) => {
     console.log(
@@ -122,6 +168,10 @@ navigator.geolocation.getCurrentPosition(
       position.coords.longitude,
       position.coords.latitude
     );
+
+    window.latitude = position.coords.latitude;
+    window.longitude = position.coords.longitude;
+
     const userLocation = Cesium.Cartesian3.fromDegrees(
       position.coords.longitude,
       position.coords.latitude,
@@ -183,54 +233,9 @@ socket.on("broadcast-client", (clientData) => {
       color: Cesium.Color.GREEN,
     },
   });
-  // Set up an event handler for the left click
-  // this is the user eavesdropping on cnoversation
-  viewer.screenSpaceEventHandler.setInputAction((click) => {
-    const pickedObject = viewer.scene.pick(click.position);
-    if (Cesium.defined(pickedObject) && pickedObject.id === newEntity) {
-      // The entity was clicked, add your logic here
-      console.log("Entity clicked:", pickedObject.id);
-      // Perform any additional actions here
-      const peerId = clientData.clientId;
-      console.log(peerId);
-      connectPeers(peerId);
-      // Create a silent audio track
-      const audioContext = new (window.AudioContext ||
-        window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const dst = audioContext.createMediaStreamDestination();
-      oscillator.connect(dst);
-      oscillator.start();
-      const track = dst.stream.getAudioTracks()[0];
 
-      // Create a new stream with the silent audio track
-      const silentStream = new MediaStream([track]);
-
-      // Use the silent stream for the call
-      const call = peer.call(peerId, silentStream);
-
-      call.on("stream", (remoteStream) => {
-        // Show stream in some video/canvas element.
-        console.log(remoteStream);
-        showConnectedContent();
-        window.remoteAudio.srcObject = remoteStream;
-        window.remoteAudio.autoplay = true;
-        window.peerStream = remoteStream;
-      });
-    }
-  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-  // Set up an event handler for mouse movement
-  viewer.screenSpaceEventHandler.setInputAction((movement) => {
-    const pickedObject = viewer.scene.pick(movement.endPosition);
-    if (Cesium.defined(pickedObject) && pickedObject.id === newEntity) {
-      // Change the cursor style to pointer
-      viewer.canvas.style.cursor = "pointer";
-    } else {
-      // Change the cursor style back to default
-      viewer.canvas.style.cursor = "default";
-    }
-  }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+  setupEntityClickHandler(newEntity, clientData);
+  setupEntityMouseOverHandler(newEntity);
 });
 
 // this is the user streaming their conversation
@@ -245,10 +250,29 @@ callBtn.addEventListener("click", () => {
     long: window.longitude,
   });
 
+  showStreamingContent();
+
+  document.getElementById("remoteAudioWrapper").style.display = "none";
+
   const getUserMedia =
     navigator.getUserMedia ||
     navigator.webkitGetUserMedia ||
     navigator.mozGetUserMedia;
+
+  getUserMedia(
+    { video: false, audio: true },
+    (stream) => {
+      // localAudio allows them to hear themselves
+      window.localStream = stream;
+      window.localAudio.srcObject = stream;
+      window.localAudio.autoplay = true;
+      window.streamStatus = "localStreaming";
+    },
+    (err) => {
+      console.log("Failed to get local stream", err);
+    }
+  );
+
   // setup receiving call
   peer.on("call", (call) => {
     getUserMedia(
@@ -263,8 +287,8 @@ callBtn.addEventListener("click", () => {
 
         call.on("stream", (remoteStream) => {
           console.log(remoteStream);
-          showConnectedContent();
           window.peerStream = remoteStream;
+          window.streamStatus = "remoteStreaming";
         });
       },
       (err) => {

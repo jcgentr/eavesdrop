@@ -21,13 +21,11 @@
       href="https://cesium.com/downloads/cesiumjs/releases/1.108/Build/Cesium/Widgets/widgets.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/index.css" />
 
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.108/Build/Cesium/Cesium.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="node_modules/socket.io/client-dist/socket.io.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/davidshimjs-qrcodejs@0.0.2/qrcode.min.js"></script>
-    <script src="script.js" defer></script>
+    <script type="module" src="/main.js"></script>
   </head>
   <body>
     <div
@@ -40,11 +38,11 @@
           <div class="audio-container">
             <button class="hangup-btn">Stop stream</button>
             <p>You're automatically muted, unmute yourself!</p>
-            <p>
+            <p id="remoteAudioWrapper">
               Remote audio:
               <audio controls id="remoteAudio" muted="true"></audio>
             </p>
-            <p>
+            <p id="localAudioWrapper">
               Local audio:
               <audio controls id="localAudio" muted="true"></audio>
             </p>

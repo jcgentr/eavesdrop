@@ -28,6 +28,8 @@ io.on("connection", (socket) => {
   socket.on("broadcast-client", (clientData) => {
     const { clientId, lat, long } = clientData;
     console.log(clientId, lat, long);
+    // don't broadcast client if they don't have proper geolocation
+    if (!lat || !long) return;
     clientsBroadcasting.push(clientData);
     io.emit("broadcast-client", clientData);
   });
@@ -51,10 +53,11 @@ peerServer.on("disconnect", (client) => {
   io.emit("clientIds", clientIds);
 });
 
-app.use(express.static(path.join(__dirname)));
+// Serve static files from Vite's build output directory
+app.use(express.static(path.join(__dirname, "dist")));
 
 app.get("/", (req, res) => {
-  res.sendFile(`${__dirname}/index.html`);
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
 app.get("/clients", (req, res) => {
