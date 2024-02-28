@@ -4,7 +4,7 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "vite:dev": "vite",
+    "vite:dev": "vite --force",
     "vite:build": "vite build",
     "vite:preview": "vite preview",
     "express:prod": "NODE_ENV=production node server.js",
