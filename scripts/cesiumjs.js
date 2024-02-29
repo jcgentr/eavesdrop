@@ -1,15 +1,12 @@
 import {
   Cartesian3,
-  createOsmBuildingsAsync,
   Ion,
-  Terrain,
   Viewer,
   ImageryLayer,
   IonWorldImageryStyle,
   defined,
   ScreenSpaceEventType,
   Color,
-  Math as CesiumMath,
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { streamCall } from "./peerjs";
@@ -47,4 +44,17 @@ export function setupEntityMouseOverHandler(entity) {
       viewer.canvas.style.cursor = "default";
     }
   }, ScreenSpaceEventType.MOUSE_MOVE);
+}
+
+export function addBroadcastingClientToCesiumGlobe(clientData) {
+  const newEntity = entities.add({
+    position: Cartesian3.fromDegrees(clientData.long, clientData.lat),
+    point: {
+      pixelSize: 24,
+      color: Color.YELLOW,
+    },
+  });
+
+  setupEntityClickHandler(newEntity, clientData);
+  setupEntityMouseOverHandler(newEntity);
 }

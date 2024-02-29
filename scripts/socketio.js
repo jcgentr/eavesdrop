@@ -1,11 +1,6 @@
 import { io } from "socket.io-client";
-import {
-  entities,
-  setupEntityClickHandler,
-  setupEntityMouseOverHandler,
-} from "./cesiumjs";
+import { addBroadcastingClientToCesiumGlobe } from "./cesiumjs";
 import { peer } from "./peerjs";
-import { Cartesian3, Color } from "cesium";
 
 // Connect to the backend server
 // In development, this will be your Vite dev server's proxy
@@ -24,14 +19,5 @@ socket.on("clientIds", function (clientIds) {
 socket.on("broadcast-client", (clientData) => {
   // if current peer, ignore
   if (clientData.clientId === peer.id) return;
-  const newEntity = entities.add({
-    position: Cartesian3.fromDegrees(clientData.long, clientData.lat),
-    point: {
-      pixelSize: 24,
-      color: Color.YELLOW,
-    },
-  });
-
-  setupEntityClickHandler(newEntity, clientData);
-  setupEntityMouseOverHandler(newEntity);
+  addBroadcastingClientToCesiumGlobe(clientData);
 });
