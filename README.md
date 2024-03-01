@@ -6,4 +6,4 @@ A Node.js web application that allows users to listen in to anonymous conversati
 
 `npm install`
 
-`npm start`
+`npm run dev-full`
