@@ -48,6 +48,7 @@ export function setupEntityMouseOverHandler(entity) {
 
 export function addBroadcastingClientToCesiumGlobe(clientData) {
   const newEntity = entities.add({
+    id: clientData.clientId,
     position: Cartesian3.fromDegrees(clientData.long, clientData.lat),
     point: {
       pixelSize: 24,
@@ -57,4 +58,11 @@ export function addBroadcastingClientToCesiumGlobe(clientData) {
 
   setupEntityClickHandler(newEntity, clientData);
   setupEntityMouseOverHandler(newEntity);
+}
+
+export function removeBroadcastingClientFromCesiumGlobe(clientId) {
+  const entityToRemove = entities.getById(clientId);
+  if (defined(entityToRemove)) {
+    entities.remove(entityToRemove);
+  }
 }

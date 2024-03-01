@@ -43,6 +43,13 @@ io.on("connection", (socket) => {
     clientsBroadcasting.push(clientData);
     io.emit("broadcast-client", clientData);
   });
+
+  socket.on("stop-broadcast", ({ clientId }) => {
+    clientsBroadcasting = clientsBroadcasting.filter(
+      (client) => client.clientId !== clientId
+    );
+    io.emit("stop-broadcast", { clientId });
+  });
 });
 
 peerServer.on("connection", (client) => {

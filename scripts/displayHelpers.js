@@ -5,9 +5,14 @@ const audioContainer = document.getElementById("callContainer");
 const hangUpBtn = document.querySelector(".hangup-btn");
 // this is the user streaming their conversation
 const callBtn = document.querySelector(".call-btn");
+let currentCall;
 
 // Displays the call button and peer ID
 export function showCallContent() {
+  if (currentCall) {
+    currentCall.close();
+    currentCall = null;
+  }
   document.getElementById("callStatus").textContent =
     "You are not currently streaming";
   callBtn.hidden = false;
@@ -23,11 +28,16 @@ export function showStreamingContent() {
 }
 
 hangUpBtn.addEventListener("click", () => {
-  peer.destroy();
+  // close p2p connection, but keep peerId
+  if (currentCall) {
+    currentCall.close();
+    currentCall = null;
+  }
+  socket.emit("stop-broadcast", { clientId: peer.id });
   showCallContent();
 });
 
-callBtn.addEventListener("click", () => {
+callBtn.addEventListener("click", async () => {
   console.log(window.latitude, window.longitude);
 
   socket.emit("broadcast-client", {
@@ -40,46 +50,41 @@ callBtn.addEventListener("click", () => {
 
   document.getElementById("remoteAudioWrapper").style.display = "none";
 
-  const getUserMedia =
-    navigator.getUserMedia ||
-    navigator.webkitGetUserMedia ||
-    navigator.mozGetUserMedia;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: false,
+      audio: true,
+    });
+    // localAudio allows them to hear themselves
+    window.localStream = stream;
+    window.localAudio.srcObject = stream;
+    window.localAudio.autoplay = true;
+    window.streamStatus = "localStreaming";
+  } catch (err) {
+    console.log("Failed to get local stream", err);
+  }
 
-  getUserMedia(
-    { video: false, audio: true },
-    (stream) => {
+  // setup receiving call
+  peer.on("call", async (call) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: false,
+        audio: true,
+      });
       // localAudio allows them to hear themselves
       window.localStream = stream;
       window.localAudio.srcObject = stream;
       window.localAudio.autoplay = true;
-      window.streamStatus = "localStreaming";
-    },
-    (err) => {
+
+      call.answer(window.localStream); // Answer the call with an audio stream.
+      currentCall = call;
+      call.on("stream", (remoteStream) => {
+        console.log(remoteStream);
+        window.peerStream = remoteStream;
+        window.streamStatus = "remoteStreaming";
+      });
+    } catch (err) {
       console.log("Failed to get local stream", err);
     }
-  );
-
-  // setup receiving call
-  peer.on("call", (call) => {
-    getUserMedia(
-      { video: false, audio: true },
-      (stream) => {
-        // localAudio allows them to hear themselves
-        window.localStream = stream;
-        window.localAudio.srcObject = stream;
-        window.localAudio.autoplay = true;
-
-        call.answer(window.localStream); // Answer the call with an audio stream.
-
-        call.on("stream", (remoteStream) => {
-          console.log(remoteStream);
-          window.peerStream = remoteStream;
-          window.streamStatus = "remoteStreaming";
-        });
-      },
-      (err) => {
-        console.log("Failed to get local stream", err);
-      }
-    );
   });
 });

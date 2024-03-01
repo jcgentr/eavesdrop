@@ -1,17 +1,13 @@
 import { Peer } from "peerjs";
 import { showStreamingContent } from "./displayHelpers";
+import { v4 as uuidv4 } from "uuid";
 
 // create new Peer with minimum length of 4 chars for peer ID
-export const peer = new Peer(
-  `${Math.floor(Math.random() * 2 ** 18)
-    .toString(36)
-    .padStart(4, 0)}`,
-  {
-    host: "localhost",
-    port: 8000,
-    path: "peerjs/myapp",
-  }
-);
+export const peer = new Peer(uuidv4(), {
+  host: "localhost",
+  port: 8000,
+  path: "peerjs/myapp",
+});
 // attach peer to global window
 window.peer = peer;
 
@@ -26,6 +22,10 @@ peer.on("connection", (conn) => {
     // Will print 'hi!'
     console.log(data);
   });
+});
+
+peer.on("close", () => {
+  console.log(`peer ${peer.id} has been destroyed`);
 });
 
 export function connectPeers(clientId) {

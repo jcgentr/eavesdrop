@@ -1,6 +1,10 @@
 import { io } from "socket.io-client";
-import { addBroadcastingClientToCesiumGlobe } from "./cesiumjs";
+import {
+  addBroadcastingClientToCesiumGlobe,
+  removeBroadcastingClientFromCesiumGlobe,
+} from "./cesiumjs";
 import { peer } from "./peerjs";
+import { showCallContent } from "./displayHelpers";
 
 // Connect to the backend server
 // In development, this will be your Vite dev server's proxy
@@ -20,4 +24,11 @@ socket.on("broadcast-client", (clientData) => {
   // if current peer, ignore
   if (clientData.clientId === peer.id) return;
   addBroadcastingClientToCesiumGlobe(clientData);
+});
+
+socket.on("stop-broadcast", ({ clientId }) => {
+  // if current peer, ignore
+  if (clientId === peer.id) return;
+  showCallContent();
+  removeBroadcastingClientFromCesiumGlobe(clientId);
 });
