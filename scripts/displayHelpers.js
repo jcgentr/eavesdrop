@@ -33,7 +33,18 @@ hangUpBtn.addEventListener("click", () => {
     currentCall.close();
     currentCall = null;
   }
-  socket.emit("stop-broadcast", { clientId: peer.id });
+
+  // Stop all tracks of the local stream to turn off the microphone
+  if (window.localStream) {
+    window.localStream.getTracks().forEach((track) => track.stop());
+  }
+
+  // Only emit stop-broadcast if the user is the broadcaster
+  if (window.isBroadcasting) {
+    socket.emit("stop-broadcast", { clientId: peer.id });
+    window.isBroadcasting = false; // Reset the broadcasting flag
+  }
+
   showCallContent();
 });
 
@@ -60,6 +71,8 @@ callBtn.addEventListener("click", async () => {
     window.localAudio.srcObject = stream;
     window.localAudio.autoplay = true;
     window.streamStatus = "localStreaming";
+    // Set the flag to indicate that this user is broadcasting
+    window.isBroadcasting = true;
   } catch (err) {
     console.log("Failed to get local stream", err);
   }

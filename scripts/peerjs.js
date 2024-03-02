@@ -4,9 +4,11 @@ import { v4 as uuidv4 } from "uuid";
 
 // create new Peer with minimum length of 4 chars for peer ID
 export const peer = new Peer(uuidv4(), {
-  host: "localhost",
-  port: 8000,
-  path: "peerjs/myapp",
+  host:
+    process.env.NODE_ENV === "production" ? "eavesdrop.fly.dev" : "localhost",
+  port: process.env.NODE_ENV === "production" ? 443 : 3000,
+  path: "/peerjs/myapp",
+  secure: process.env.NODE_ENV === "production",
 });
 // attach peer to global window
 window.peer = peer;

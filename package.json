@@ -7,7 +7,7 @@
     "vite:dev": "vite --force",
     "vite:build": "vite build",
     "vite:preview": "vite preview",
-    "express:prod": "NODE_ENV=production node server.js",
+    "express:prod": "NODE_ENV=production PORT=3000 node server.js",
     "express:dev": "NODE_ENV=development nodemon server.js",
     "dev-full": "concurrently \"npm run express:dev\" \"npm run vite:dev\" ",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -33,6 +33,7 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@flydotio/dockerfile": "^0.5.2",
     "concurrently": "^8.2.2",
     "nodemon": "^3.0.1",
     "vite": "^5.1.4",

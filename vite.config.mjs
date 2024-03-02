@@ -11,18 +11,18 @@ export default defineConfig({
     proxy: {
       // Proxy /clients route to Express server
       "/clients": {
-        target: "http://localhost:8000", // Your Express server
+        target: "http://localhost:3000", // Your Express server
         changeOrigin: true,
         secure: false,
       },
       // Proxy /peerjs route to Express server
       "/peerjs": {
-        target: "http://localhost:8000", // Your Express server
+        target: "http://localhost:3000", // Your Express server
         changeOrigin: true,
         secure: false,
       },
       "/socket.io": {
-        target: "http://localhost:8000", // Your Express server
+        target: "http://localhost:3000", // Your Express server
         ws: true, // Proxy websockets
         changeOrigin: true,
       },

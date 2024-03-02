@@ -12,22 +12,26 @@ import {
   viewer,
 } from "./scripts/cesiumjs";
 
-// first get all clients currently broadcasting
-const broadcastingClients = await getBroadcastingClients();
-// show them on the globe and make them clickable
-broadcastingClients.map((clientData) => {
-  addBroadcastingClientToCesiumGlobe(clientData);
-});
-// now let's try to get user's location
-// Dummy one, which will result in a working next statement (hopefully).
-navigator.geolocation.getCurrentPosition(
-  function () {},
-  function () {},
-  {}
-);
+(async function main() {
+  // first get all clients currently broadcasting
+  const broadcastingClients = await getBroadcastingClients();
+  // show them on the globe and make them clickable
+  broadcastingClients.forEach((clientData) => {
+    addBroadcastingClientToCesiumGlobe(clientData);
+  });
 
-navigator.geolocation.getCurrentPosition(
-  (position) => {
+  function getCurrentPosition() {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: false, // Set to false to test without high accuracy
+        maximumAge: 60000, // Increase maximumAge to allow for cached positions
+        timeout: 27000, // Increase or decrease the timeout value
+      });
+    });
+  }
+
+  try {
+    const position = await getCurrentPosition();
     console.log(
       "found location: ",
       position.coords.longitude,
@@ -64,17 +68,11 @@ navigator.geolocation.getCurrentPosition(
       },
       duration: 2, // Duration in seconds
     });
-  },
-  (positionError) => {
+  } catch (positionError) {
     console.log("could not get position =(");
     console.log(positionError);
-  },
-  {
-    enableHighAccuracy: true, // Set to false to test without high accuracy
-    maximumAge: 10000, // Increase maximumAge to allow for cached positions
-    timeout: 27000, // Increase or decrease the timeout value
   }
-);
+})();
 
 // socket.io established by displayHelper import
 // displayHelper setup by importing showStreamingContent here
