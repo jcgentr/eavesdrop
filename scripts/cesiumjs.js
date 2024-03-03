@@ -22,6 +22,15 @@ export const viewer = new Viewer("cesiumContainer", {
     style: IonWorldImageryStyle.AERIAL_WITH_LABELS,
   }),
   baseLayerPicker: false,
+  vrButton: false,
+  homeButton: false,
+  geocoder: false,
+  sceneModePicker: false,
+  navigationHelpButton: false,
+  animation: false,
+  timeline: false,
+  fullscreenButton: false,
+  infoBox: false,
 });
 
 export const entities = viewer.entities;
