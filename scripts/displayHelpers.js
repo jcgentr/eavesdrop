@@ -7,12 +7,15 @@ const hangUpBtn = document.querySelector(".hangup-btn");
 const callBtn = document.querySelector(".call-btn");
 let currentCall;
 
-// Displays the call button and peer ID
-export function showCallContent() {
+export function closeCurrentCall() {
   if (currentCall) {
     currentCall.close();
     currentCall = null;
   }
+}
+
+// Displays the call button and peer ID
+export function showCallContent() {
   document.getElementById("callStatus").textContent =
     "You are not currently streaming";
   callBtn.hidden = false;
@@ -20,9 +23,11 @@ export function showCallContent() {
 }
 
 // Displays the audio controls and correct copy
-export function showStreamingContent() {
-  document.getElementById("callStatus").textContent =
-    "You are currently streaming";
+export function showStreamingContent({ isStreamer = true }) {
+  hangUpBtn.textContent = isStreamer ? "Stop streaming" : "Stop listening";
+  document.getElementById("callStatus").textContent = `You are currently ${
+    isStreamer ? "streaming" : "listening"
+  }.`;
   callBtn.hidden = true;
   audioContainer.hidden = false;
 }
@@ -57,9 +62,10 @@ callBtn.addEventListener("click", async () => {
     long: window.longitude,
   });
 
-  showStreamingContent();
+  showStreamingContent({ isStreamer: true });
 
   document.getElementById("remoteAudioWrapper").style.display = "none";
+  document.getElementById("localAudioWrapper").style.display = "block";
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({

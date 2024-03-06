@@ -1,5 +1,5 @@
 import { Peer } from "peerjs";
-import { showStreamingContent } from "./displayHelpers";
+import { closeCurrentCall, showStreamingContent } from "./displayHelpers";
 import { v4 as uuidv4 } from "uuid";
 
 // create new Peer with minimum length of 4 chars for peer ID
@@ -42,8 +42,9 @@ export function connectPeers(clientId) {
   });
 }
 
+// user is trying to listen to a conversation
 export function streamCall(clientData, pickedObject) {
-  // this stuff needs to go into peerjs helper function
+  closeCurrentCall();
   console.log("Entity clicked:", pickedObject.id);
   const peerId = clientData.clientId;
 
@@ -62,8 +63,12 @@ export function streamCall(clientData, pickedObject) {
 
   call.on("stream", (remoteStream) => {
     console.log(remoteStream);
+
+    document.getElementById("remoteAudioWrapper").style.display = "block";
     document.getElementById("localAudioWrapper").style.display = "none";
-    showStreamingContent();
+
+    showStreamingContent({ isStreamer: false });
+
     window.remoteAudio.srcObject = remoteStream;
     window.remoteAudio.autoplay = true;
     window.peerStream = remoteStream;
