@@ -1,76 +1,124 @@
 import { Peer } from "peerjs";
-import { closeCurrentCall, showStreamingContent } from "./displayHelpers";
+import { showStreamingContent } from "./displayHelpers";
 import { v4 as uuidv4 } from "uuid";
 
-// create new Peer with minimum length of 4 chars for peer ID
-export const peer = new Peer(uuidv4(), {
-  host:
-    process.env.NODE_ENV === "production" ? "eavesdrop.fly.dev" : "localhost",
-  port: process.env.NODE_ENV === "production" ? 443 : 3000,
-  path: "/peerjs/myapp",
-  secure: process.env.NODE_ENV === "production",
-});
-// attach peer to global window
-window.peer = peer;
+class PeerClient {
+  constructor() {
+    this.peer = new Peer(uuidv4(), {
+      host:
+        process.env.NODE_ENV === "production"
+          ? "eavesdrop.fly.dev"
+          : "localhost",
+      port: process.env.NODE_ENV === "production" ? 443 : 3000,
+      path: "/peerjs/myapp",
+      secure: process.env.NODE_ENV === "production",
+    });
+    this.p2pConnection = null;
+    this.currentCall = null;
+    this.setupPeerEvents();
+  }
 
-peer.on("open", () => {
-  document.getElementById(
-    "clientId"
-  ).textContent = `Your device ID is: ${peer.id}`;
-});
+  setupPeerEvents() {
+    this.peer.on("open", () => {
+      document.getElementById(
+        "clientId"
+      ).textContent = `Your device ID is: ${this.peer.id}`;
+    });
 
-peer.on("connection", (conn) => {
-  conn.on("data", (data) => {
-    // Will print 'hi!'
-    console.log(data);
-  });
-});
+    this.peer.on("connection", (conn) => {
+      conn.on("data", (data) => {
+        console.log(data);
+      });
+    });
 
-peer.on("close", () => {
-  console.log(`peer ${peer.id} has been destroyed`);
-});
+    this.peer.on("close", () => {
+      console.log(`peer ${this.peer.id} has been destroyed`);
+    });
 
-export function connectPeers(clientId) {
-  console.log("trying to connect to ", clientId);
-  const p2pConnection = peer.connect(clientId);
-  console.log("connected peers: ", p2pConnection);
+    // setup receiving call from the listener peer
+    this.peer.on("call", async (call) => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: true,
+        });
+        // localAudio allows them to hear themselves
+        window.localStream = stream;
+        window.localAudio.srcObject = stream;
+        window.localAudio.autoplay = true;
 
-  p2pConnection.on("open", () => {
-    // here you have conn.id
-    console.log("p2p connection open");
-    p2pConnection.send("hi!");
-  });
+        this.currentCall = call;
+
+        call.answer(window.localStream); // Answer the call with an audio stream.
+
+        call.on("stream", (remoteStream) => {
+          console.log(remoteStream);
+          window.peerStream = remoteStream;
+        });
+      } catch (err) {
+        console.log("Failed to get local stream", err);
+      }
+    });
+  }
+
+  // connect this listener to the streamer via their id
+  connectPeers(clientId) {
+    console.log("trying to connect to ", clientId);
+    this.p2pConnection = this.peer.connect(clientId);
+    console.log("connected peers: ", this.p2pConnection);
+
+    this.p2pConnection.on("open", () => {
+      console.log("p2p connection open");
+      this.p2pConnection.send("hi!");
+    });
+  }
+
+  // user is trying to listen to a conversation
+  streamCall(clientData, pickedObject) {
+    this.closeCurrentCall();
+    console.log("Entity clicked:", pickedObject.id);
+    const peerId = clientData.clientId;
+
+    console.log(peerId);
+    this.connectPeers(peerId);
+
+    const audioContext = new (window.AudioContext ||
+      window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const dst = audioContext.createMediaStreamDestination();
+    oscillator.connect(dst);
+    oscillator.start();
+
+    const track = dst.stream.getAudioTracks()[0];
+    const silentStream = new MediaStream([track]);
+    const call = this.peer.call(peerId, silentStream);
+
+    this.currentCall = call;
+
+    call.on("stream", (remoteStream) => {
+      console.log(remoteStream);
+
+      document.getElementById("remoteAudioWrapper").style.display = "block";
+      document.getElementById("localAudioWrapper").style.display = "none";
+
+      showStreamingContent({ isStreamer: false });
+
+      window.remoteAudio.srcObject = remoteStream;
+      window.remoteAudio.autoplay = true;
+      window.peerStream = remoteStream;
+    });
+  }
+
+  closeCurrentCall() {
+    if (this.currentCall) {
+      this.currentCall.close();
+      this.currentCall = null;
+    }
+    if (this.p2pConnection) {
+      this.p2pConnection.close();
+      this.p2pConnection = null;
+    }
+  }
 }
 
-// user is trying to listen to a conversation
-export function streamCall(clientData, pickedObject) {
-  closeCurrentCall();
-  console.log("Entity clicked:", pickedObject.id);
-  const peerId = clientData.clientId;
-
-  console.log(peerId);
-  connectPeers(peerId);
-
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const oscillator = audioContext.createOscillator();
-  const dst = audioContext.createMediaStreamDestination();
-  oscillator.connect(dst);
-  oscillator.start();
-
-  const track = dst.stream.getAudioTracks()[0];
-  const silentStream = new MediaStream([track]);
-  const call = peer.call(peerId, silentStream);
-
-  call.on("stream", (remoteStream) => {
-    console.log(remoteStream);
-
-    document.getElementById("remoteAudioWrapper").style.display = "block";
-    document.getElementById("localAudioWrapper").style.display = "none";
-
-    showStreamingContent({ isStreamer: false });
-
-    window.remoteAudio.srcObject = remoteStream;
-    window.remoteAudio.autoplay = true;
-    window.peerStream = remoteStream;
-  });
-}
+export const peerClient = new PeerClient();

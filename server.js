@@ -40,7 +40,14 @@ io.on("connection", (socket) => {
 
     // don't broadcast client if they don't have proper geolocation
     if (!clientData.lat || !clientData.long) return;
-    clientsBroadcasting.push(clientData);
+    const index = clientsBroadcasting.findIndex(
+      (c) => c.clientId === clientData.clientId
+    );
+    if (index !== -1) {
+      clientsBroadcasting[index] = clientData;
+    } else {
+      clientsBroadcasting.push(clientData);
+    }
     io.emit("broadcast-client", clientData);
   });
 
@@ -67,6 +74,7 @@ peerServer.on("disconnect", (client) => {
   clientsBroadcasting = clientsBroadcasting.filter(
     ({ clientId }) => clientId !== client.id
   );
+  io.emit("stop-broadcast", { clientId: client.id });
   io.emit("clientIds", clientIds);
 });
 

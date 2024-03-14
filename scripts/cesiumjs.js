@@ -9,69 +9,78 @@ import {
   Color,
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { streamCall } from "./peerjs";
+import { peerClient } from "./peerjs";
 
-// Your access token can be found at: https://ion.cesium.com/tokens.
-// This is the default access token from your ion account
-Ion.defaultAccessToken =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzYTZmYjQxYi04ZDhhLTQ1NTQtYThhYy1jOTdhNWRmZTU3MmYiLCJpZCI6MTYyODk3LCJpYXQiOjE3MDg2MTQzNDN9.tJSlF71XoFHJyQNsDLHQbqeTjpbyRGCVeXvWFaTQaPQ";
+class CesiumClient {
+  constructor() {
+    // Your access token can be found at: https://ion.cesium.com/tokens.
+    // This is the default access token from your ion account
+    Ion.defaultAccessToken =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzYTZmYjQxYi04ZDhhLTQ1NTQtYThhYy1jOTdhNWRmZTU3MmYiLCJpZCI6MTYyODk3LCJpYXQiOjE3MDg2MTQzNDN9.tJSlF71XoFHJyQNsDLHQbqeTjpbyRGCVeXvWFaTQaPQ";
 
-// Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
-export const viewer = new Viewer("cesiumContainer", {
-  baseLayer: ImageryLayer.fromWorldImagery({
-    style: IonWorldImageryStyle.AERIAL_WITH_LABELS,
-  }),
-  baseLayerPicker: false,
-  vrButton: false,
-  homeButton: false,
-  geocoder: false,
-  sceneModePicker: false,
-  navigationHelpButton: false,
-  animation: false,
-  timeline: false,
-  fullscreenButton: false,
-  infoBox: false,
-});
+    // Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
+    this.viewer = new Viewer("cesiumContainer", {
+      baseLayer: ImageryLayer.fromWorldImagery({
+        style: IonWorldImageryStyle.AERIAL_WITH_LABELS,
+      }),
+      baseLayerPicker: false,
+      vrButton: false,
+      homeButton: false,
+      geocoder: false,
+      sceneModePicker: false,
+      navigationHelpButton: false,
+      animation: false,
+      timeline: false,
+      fullscreenButton: false,
+      infoBox: false,
+    });
 
-export const entities = viewer.entities;
+    this.entities = this.viewer.entities;
+  }
 
-export function setupEntityClickHandler(entity, clientData) {
-  viewer.screenSpaceEventHandler.setInputAction((click) => {
-    const pickedObject = viewer.scene.pick(click.position);
-    if (defined(pickedObject) && pickedObject.id === entity) {
-      streamCall(clientData, pickedObject);
+  setupEntityClickHandler(entity, clientData) {
+    this.viewer.screenSpaceEventHandler.setInputAction((click) => {
+      const pickedObject = this.viewer.scene.pick(click.position);
+
+      if (window.isBroadcasting) return alert("Stop streaming first!");
+
+      if (defined(pickedObject) && pickedObject.id === entity) {
+        peerClient.streamCall(clientData, pickedObject);
+      }
+    }, ScreenSpaceEventType.LEFT_CLICK);
+  }
+
+  setupEntityMouseOverHandler(entity) {
+    this.viewer.screenSpaceEventHandler.setInputAction((movement) => {
+      const pickedObject = this.viewer.scene.pick(movement.endPosition);
+      if (defined(pickedObject) && pickedObject.id === entity) {
+        this.viewer.canvas.style.cursor = "pointer";
+      } else {
+        this.viewer.canvas.style.cursor = "default";
+      }
+    }, ScreenSpaceEventType.MOUSE_MOVE);
+  }
+
+  addBroadcastingClientToCesiumGlobe(clientData) {
+    const newEntity = this.entities.add({
+      id: clientData.clientId,
+      position: Cartesian3.fromDegrees(clientData.long, clientData.lat),
+      point: {
+        pixelSize: 24,
+        color: Color.YELLOW,
+      },
+    });
+
+    this.setupEntityClickHandler(newEntity, clientData);
+    this.setupEntityMouseOverHandler(newEntity);
+  }
+
+  removeBroadcastingClientFromCesiumGlobe(clientId) {
+    const entityToRemove = this.entities.getById(clientId);
+    if (defined(entityToRemove)) {
+      this.entities.remove(entityToRemove);
     }
-  }, ScreenSpaceEventType.LEFT_CLICK);
-}
-
-export function setupEntityMouseOverHandler(entity) {
-  viewer.screenSpaceEventHandler.setInputAction((movement) => {
-    const pickedObject = viewer.scene.pick(movement.endPosition);
-    if (defined(pickedObject) && pickedObject.id === entity) {
-      viewer.canvas.style.cursor = "pointer";
-    } else {
-      viewer.canvas.style.cursor = "default";
-    }
-  }, ScreenSpaceEventType.MOUSE_MOVE);
-}
-
-export function addBroadcastingClientToCesiumGlobe(clientData) {
-  const newEntity = entities.add({
-    id: clientData.clientId,
-    position: Cartesian3.fromDegrees(clientData.long, clientData.lat),
-    point: {
-      pixelSize: 24,
-      color: Color.YELLOW,
-    },
-  });
-
-  setupEntityClickHandler(newEntity, clientData);
-  setupEntityMouseOverHandler(newEntity);
-}
-
-export function removeBroadcastingClientFromCesiumGlobe(clientId) {
-  const entityToRemove = entities.getById(clientId);
-  if (defined(entityToRemove)) {
-    entities.remove(entityToRemove);
   }
 }
+
+export const cesiumClient = new CesiumClient();

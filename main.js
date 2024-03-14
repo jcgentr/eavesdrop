@@ -1,34 +1,29 @@
 window.clientIds = [];
 window.latitude = null;
 window.longitude = null;
-window.streamStatus = null;
 
 import { Cartesian3, Color, Math as CesiumMath } from "cesium";
 import "./index.css";
 import { getBroadcastingClients } from "./scripts/api";
-import {
-  addBroadcastingClientToCesiumGlobe,
-  entities,
-  viewer,
-} from "./scripts/cesiumjs";
+import { cesiumClient } from "./scripts/cesiumjs";
+
+function getCurrentPosition() {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: false, // Set to false to test without high accuracy
+      maximumAge: 60000, // Increase maximumAge to allow for cached positions
+      timeout: 27000, // Increase or decrease the timeout value
+    });
+  });
+}
 
 (async function main() {
   // first get all clients currently broadcasting
   const broadcastingClients = await getBroadcastingClients();
   // show them on the globe and make them clickable
   broadcastingClients.forEach((clientData) => {
-    addBroadcastingClientToCesiumGlobe(clientData);
+    cesiumClient.addBroadcastingClientToCesiumGlobe(clientData);
   });
-
-  function getCurrentPosition() {
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false, // Set to false to test without high accuracy
-        maximumAge: 60000, // Increase maximumAge to allow for cached positions
-        timeout: 27000, // Increase or decrease the timeout value
-      });
-    });
-  }
 
   try {
     const position = await getCurrentPosition();
@@ -47,7 +42,7 @@ import {
       10000000
     );
 
-    entities.add({
+    cesiumClient.entities.add({
       position: Cartesian3.fromDegrees(
         position.coords.longitude,
         position.coords.latitude
@@ -59,7 +54,7 @@ import {
     });
 
     // Spin the globe to the user's location
-    viewer.camera.flyTo({
+    cesiumClient.viewer.camera.flyTo({
       destination: userLocation,
       orientation: {
         heading: CesiumMath.toRadians(0.0), // East, default value
